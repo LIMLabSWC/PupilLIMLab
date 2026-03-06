@@ -1,11 +1,10 @@
 import argparse
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import platform
-# import cv2
 import numpy as np
 
 import pandas as pd
-import skvideo.io
+from . import skvideo
 import time
 import signal  # <-- added for signal handling
 import sys     # <-- for sys.exit
