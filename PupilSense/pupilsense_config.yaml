@@ -1,6 +1,0 @@
-config_path: 'X:\pupil_sense\models\Config\config.yaml'
-model_path: 'X:\pupil_sense\models\model_final.pth'
-num_frames: 0
-
-ceph_dir_linux: '/ceph/akrami'
-ceph_dir_windows: 'X:\'

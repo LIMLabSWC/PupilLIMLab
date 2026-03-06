@@ -1,6 +1,0 @@
-numpy
-pandas
-scipy
-pyyaml
-tqdm
-XdetectionCore>=0.1.5
