@@ -1,0 +1,28 @@
+pdatadir_windows: 'X:\Dammy\Human_Xdetection\Data\aligned_fam'
+pdatadir_linux: '/ceph/akrami/Dammy/Human_Xdetection/Data/aligned_fam'
+ceph_dir_linux: '/ceph/akrami'
+ceph_dir_windows: 'X:\'
+tdatadir_windows: 'H:\data\Hilde'
+tdatadir_linux: '/nfs/nhome/live/aonih/data/Hilde'
+dirstyle: 'Y_m_d\it'
+
+dates2process: ['220311','220316','220405','220407','220407','220408','220422','220425']
+
+protocol: 'fam'
+animals2process: ['Human20','Human21','Human22','Human23', 'Human24','Human25','Human26','Human27']
+pklname_suffix: 'human_fam_w_pupilsense'
+pkl_dir: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+pkl_dir_windows: 'X:\Dammy\mouse_pupillometry\pickles'
+pkl_dir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+do_zscore: true
+bandpass_met: [0.0,0]
+han_size: 0
+fs: 90.0
+pdata_topic: 'pupildata_2d'
+use_TTL: true
+sess_to_redo: []
+use_canny_ell: false
+use_pupilsense: true
+use_dlc: false
+ow_flag: true
+subject_type: 'human'

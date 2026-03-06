@@ -1,0 +1,51 @@
+pdatadir_windows: 'X:\Dammy\mouse_pupillometry\mouse_hf'
+pdatadir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/mouse_hf/'
+tdatadir_windows: 'H:\data\Dammy'
+tdatadir_linux: '/nfs/nhome/live/aonih/data/Dammy'
+dirstyle: 'N_D_it'
+ceph_dir_linux: '/ceph/akrami'
+ceph_dir_windows: 'X:\'
+# os: unix
+
+dates2process: []
+
+
+protocol: 'fam'
+animals2process: []
+session_topology_path: /ceph/akrami/Dammy/Xdetection_mouse_hf_test/session_topology_musc_2501.csv
+# preprocess_pkl: 'DO79_2401_fam_preprocessed_w_suffix.pkl'
+#preprocess_pkl_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles/mouse_2309mice_fam_preprocessed.pkl'
+pkl_dir_windows: 'X:\Dammy\mouse_pupillometry\pickles'
+pkl_dir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+do_zscore: true
+bandpass_met: [0.1,4]
+han_size: 0
+fs: 90.0
+pdata_topic: 'pupildata_2d'
+use_TTL: true
+pklname_suffix: 'musc_2501_allsess_250301'
+sess_to_redo: []
+use_canny_ell: false
+ow_flag: true
+
+muscimol_dates:
+  - 250212  # skip
+  - 250217  # maybe skip
+  - 250219
+  - 250221
+  - 250224
+
+saline_dates:
+  - 250207
+  - 250211
+  - 250126
+  - 250228
+  - 250303
+
+exclude_dates:
+  - 250212
+  - 250217
+  - 250207
+  - 250211
+
+# altrand_dates:

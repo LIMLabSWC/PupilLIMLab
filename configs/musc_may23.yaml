@@ -1,0 +1,93 @@
+# pdatadir_windows: 'X:\Dammy\mouse_pupillometry\mouse_hf'
+# pdatadir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/mouse_hf/'
+# tdatadir_windows: 'H:\data\Dammy'
+# tdatadir_linux: '/nfs/nhome/live/aonih/data/Dammy'
+# dirstyle: 'N_D_it'
+# os: 'unix'
+
+# dates2process:
+#  - '230531'
+#  - '230601'
+#  - '230602'
+#  - '230605'
+#  - '230606'
+#  - '230607'
+#  - '230608'
+#  - '230609'
+#  - '230717'
+#  - '230718'
+#  - '230719'  # muscimol day all mice
+#  - '230720'
+#  - '230721'  #  Saline day
+#  - '230724'
+#  - '230725'
+#  - '230802'
+#  - '230803'
+#  - '230804' # muscimol 1 ul/ul 
+# protocol: 'fam'
+# animals2process: ['DO64','DO69','DO70']
+# preprocess_pkl: 'mouse_2305mice_fam_preprocessed.pkl'
+# pkl_dir: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+# pkl_dir_windows: 'X:\Dammy\mouse_pupillometry\pickles'
+# pkl_dir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+# do_zscore: true
+# bandpass_met: [0.125,4]
+# han_size: 0.15
+# fs: 90.0
+# pdata_topic: 'pupildata_2d'
+# use_TTL: true
+# sess_to_redo: []
+# pklname_suffix: '2305_batch_no_canny'
+# use_canny_ell: false
+
+pdatadir_windows: 'X:\Dammy\mouse_pupillometry\mouse_hf'
+pdatadir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/mouse_hf/'
+tdatadir_windows: 'H:\data\Dammy'
+tdatadir_linux: '/nfs/nhome/live/aonih/data/Dammy'
+dirstyle: 'N_D_it'
+ceph_dir_linux: '/ceph/akrami'
+ceph_dir_windows: 'X:\'
+# os: unix
+
+dates2process: []
+
+
+protocol: 'fam'
+animals2process: []
+session_topology_path: 'X:\Dammy\Xdetection_mouse_hf_test\session_topology_musc_may23.csv'
+# preprocess_pkl: 'DO79_2401_fam_preprocessed_w_suffix.pkl'
+#preprocess_pkl_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles/mouse_2309mice_fam_preprocessed.pkl'
+pkl_dir_windows: 'X:\Dammy\mouse_pupillometry\pickles'
+pkl_dir_linux: '/ceph/akrami/Dammy/mouse_pupillometry/pickles'
+do_zscore: true
+bandpass_met: [0.0,0]
+han_size: 0
+fs: 90.0
+pdata_topic: 'pupildata_2d'
+use_TTL: true
+pklname_suffix: 'musc_may23'
+sess_to_redo: []
+use_canny_ell: false
+ow_flag: false
+muscimol_dates:
+  - 230719
+  - 240703
+  - 230804 # muscimol 1 ul/ul
+saline_dates:
+  - 230721
+none_dates:
+  - 230531
+  - 230601
+  - 230602
+  - 230605
+  - 230606
+  - 230607
+  # - 230608 # muscimol day (64, 69)
+  - 230609
+  - 230717
+  - 230718
+  # - 230719 # muscimol day 2 0.5 uL dose (64,69,70)
+  - 230720
+  - 230721
+  - 230724
+  - 230725
