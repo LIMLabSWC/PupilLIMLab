@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Pupil_LIMlab" # Must be unique on PyPI
-version = "1.0.5.4"
+version = "1.0.5.5"
 description = "A pupil analysis and inference toolkit"
 readme = "README.md"
 authors = [{name = "Dammy", email = "a.aonih@ucl.ac.uk"}]
+requires-python = ">=3.10"
 dependencies = [
     "numpy < 2.0.0", 
     "matplotlib",
@@ -26,8 +27,12 @@ dependencies = [
     "omegaconf",
     "pycocotools",
     "python-dotenv",
-    "torch==2.2.0",
-    "torchvision==0.17",
     "imageio[ffmpeg]",
     "scikit-learn",
+    "pyav",
 ]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# This tells pytest NOT to look inside your dependency folders
+norecursedirs = ["build", "dist"]
+pythonpath = ["."]

@@ -15,7 +15,6 @@ fvcore
 omegaconf
 pycocotools
 python-dotenv
-torch==2.2.0
-torchvision==0.17
 imageio[ffmpeg]
 scikit-learn
+pyav

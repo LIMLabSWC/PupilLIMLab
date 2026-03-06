@@ -1,10 +1,9 @@
 from pathlib import Path
 import cv2
 import torch
-from . detectron2.config import get_cfg
-from . detectron2.engine import DefaultPredictor
-from . detectron2.utils.visualizer import Visualizer
-
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
+from detectron2.utils.visualizer import Visualizer
 
 
 
