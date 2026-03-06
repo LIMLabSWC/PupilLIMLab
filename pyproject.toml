@@ -14,7 +14,7 @@ dependencies = [
     "scipy", 
     "pyyaml", 
     "tqdm", 
-    "XdetectionCore>=0.1.7.3"
+    "XdetectionCore>=0.1.7.3",
     "pytest"
 ]
 test = ["pytest"]
