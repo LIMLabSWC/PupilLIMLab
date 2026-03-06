@@ -4,7 +4,7 @@ import platform
 import numpy as np
 
 import pandas as pd
-from . import skvideo
+import imageio.v3 as iio
 import time
 import signal  # <-- added for signal handling
 import sys     # <-- for sys.exit
@@ -43,7 +43,12 @@ def main(eye_video_paths,invert_gray_im, **kwargs):
         # load video using skvideo.io.vread
         num_frames_to_load = kwargs.get('num_frames',0) 
         
-        eye_video = skvideo.io.vread(str(eye_video_path), num_frames=num_frames_to_load, outputdict={'-pix_fmt': 'gray'}) 
+        # eye_video = skvideo.io.vread(str(eye_video_path), num_frames=num_frames_to_load, outputdict={'-pix_fmt': 'gray'}) 
+        eye_video = iio.imread(str(eye_video_path), 
+                               index=slice(0, num_frames_to_load) if num_frames_to_load > 0 else None,
+                               plugin="pyav", # Or "ffmpeg"
+                               format="gray"
+                               )
         load_end = time.time()
         print(f'load time: {round((load_end-load_start)/60,2)} mins')
         # eye_video = eye_video.dtype(np.uint8)

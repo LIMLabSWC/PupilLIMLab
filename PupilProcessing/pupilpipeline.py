@@ -1,33 +1,19 @@
-import logging
-import math
-import os.path
-
 import joblib
 import pandas as pd
 
 from .psychophysicsUtils import *
 from . import utils
 from xdetectioncore.behaviour import load_aggregate_td_df, add_datetimecol
-from datetime import datetime, time, timedelta,timezone
-from matplotlib import pyplot as plt
+from datetime import datetime, timedelta,timezone
 import numpy as np
-from scipy import signal
-import time
 from copy import deepcopy as copy
-import glob
 import pathlib
 from pathlib import Path
-import yaml
 from loguru import logger
-from rich.logging import RichHandler
 from pyinspect import install_traceback
-import psutil
-import argparse
 import multiprocessing
-import platform
 from tqdm import tqdm
 import sys
-import pytz
 
 
 # script for building trial data and pupil data dict
@@ -52,18 +38,6 @@ def remove_missed_ttls(ts: np.ndarray) -> np.ndarray:
     mean_dt = ts_diff.mean()
     good_idx = np.where(ts_diff.round('0.01S') > mean_dt.round('0.01S'))[0]
     return ts[good_idx]
-
-
-def has_handle(fpath):
-    for proc in psutil.process_iter():
-        try:
-            for item in proc.open_files():
-                if fpath == item.path:
-                    return True
-        except Exception:
-            pass
-
-    return False
 
 
 def get_dlc_est_path(recdir, filt_flag, non_plabs_str,name):

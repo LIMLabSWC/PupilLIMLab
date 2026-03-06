@@ -1,12 +1,99 @@
 Metadata-Version: 2.4
 Name: Pupil_LIMlab
-Version: 1.0.3
+Version: 1.0.5.4
 Summary: A pupil analysis and inference toolkit
 Author-email: Dammy <a.aonih@ucl.ac.uk>
 Description-Content-Type: text/markdown
-Requires-Dist: numpy
+License-File: LICENSE
+Requires-Dist: numpy<2.0.0
+Requires-Dist: matplotlib
 Requires-Dist: pandas
-Requires-Dist: scipy
+Requires-Dist: scipy<1.13
 Requires-Dist: pyyaml
 Requires-Dist: tqdm
-Requires-Dist: XdetectionCore>=0.1.5
+Requires-Dist: XdetectionCore>=0.1.7.3
+Requires-Dist: pytest
+Requires-Dist: loguru
+Requires-Dist: rich
+Requires-Dist: opencv-python
+Requires-Dist: pyinspect==0.1.0
+Requires-Dist: cloudpickle
+Requires-Dist: fvcore
+Requires-Dist: omegaconf
+Requires-Dist: pycocotools
+Requires-Dist: python-dotenv
+Requires-Dist: torch==2.2.0
+Requires-Dist: torchvision==0.17
+Requires-Dist: imageio[ffmpeg]
+Requires-Dist: scikit-learn
+Dynamic: license-file
+
+# PupilToolKit
+
+*A lightweight toolkit for pupil tracking and processing used by LIM Lab.*
+
+## Overview
+
+PupilToolKit provides utilities and pipelines for pupil extraction, processing, and inference. The repository includes two main components:
+
+- `PupilProcessing`: processing pipelines and utility functions.
+- `PupilSense`: integration with PupilSense inference tools and example scripts.
+
+Configuration files for experiments and devices are stored in the `configs/` directory.
+
+## Features
+
+- Extract and process pupil data
+- Run inference with PupilSense models
+- Example scripts and test coverage
+
+## Requirements
+
+- Python 3.8+ (recommended)
+- Typical scientific packages: `numpy`, `scipy`, etc. (see `pyproject.toml` / `setup.py`)
+
+Create and activate a virtual environment before installing:
+
+```bash
+conda create -n process_pupil python=3.10 -y
+conda activate process_pupil
+pip install -e .
+```
+
+Or using pip/venv:
+
+```bash
+python -m venv .venv
+.venv\\Scripts\\activate
+pip install -e .
+```
+
+## Quick start
+
+Run the example script:
+
+```bash
+python example/run_script.py
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+## Repository structure
+
+- `PupilProcessing/` — core processing modules and utilities
+- `PupilSense/` — PupilSense integration and inference scripts
+- `configs/` — YAML configuration files for experiments and devices
+- `example/` — runnable example scripts
+- `tests/` — unit tests
+
+## Contributing
+
+Contributions welcome. Please open issues or pull requests and follow existing code style. Add tests for any behavior changes.
+
+## License
+
+This repository does not include a license file. Add a `LICENSE` if you intend to publish.
