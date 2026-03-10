@@ -18,15 +18,15 @@ def test_package_import():
     # assert PupilSense.__file__ is not None
     # assert "site-packages" in PupilSense.__file__ or "PupilSense" in PupilSense.__file__
 
-# def test_inference_import():
-#     """Verify the Inference class can be imported."""
-#     from PupilSense.inference_pupil_sense import Inference
-#     assert Inference is not None, "Failed to import Inference class from PupilSense.inference_pupil_sense"
+def test_inference_import():
+    """Verify the Inference class can be imported."""
+    from PupilSense.inference_pupil_sense import Inference
+    assert Inference is not None, "Failed to import Inference class from PupilSense.inference_pupil_sense"
 
-# def test_extract_pupil_import():
-#     """Verify the main function can be imported."""
-#     from PupilSense.extract_pupil_pupil_sense import main
-#     assert main is not None, "Failed to import main function from PupilSense.extract_pupil_pupil_sense"
+def test_extract_pupil_import():
+    """Verify the main function can be imported."""
+    from PupilSense.extract_pupil_pupil_sense import main
+    assert main is not None, "Failed to import main function from PupilSense.extract_pupil_pupil_sense"
 
 def test_path_conversion():
     """Verify the Windows-to-POSIX engine works."""

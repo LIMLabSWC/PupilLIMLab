@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: Pupil_LIMlab
-Version: 1.0.5.4
+Version: 1.0.5.6
 Summary: A pupil analysis and inference toolkit
 Author-email: Dammy <a.aonih@ucl.ac.uk>
 Requires-Python: >=3.10
@@ -25,7 +25,6 @@ Requires-Dist: pycocotools
 Requires-Dist: python-dotenv
 Requires-Dist: imageio[ffmpeg]
 Requires-Dist: scikit-learn
-Requires-Dist: pyav
 Dynamic: license-file
 
 # PupilToolKit
@@ -67,6 +66,41 @@ python -m venv .venv
 .venv\\Scripts\\activate
 pip install -e .
 ```
+
+## Installation
+
+Recommended: create and activate a virtual environment (conda or venv) before installing packages.
+
+- **PyTorch & TorchVision (CUDA 12.1)** — install the CUDA 12.1 builds of PyTorch 2.2 and TorchVision 0.17.0:
+
+```bash
+pip install torch==2.2.0+cu121 torchvision==0.17.0+cu121 -f https://download.pytorch.org/whl/torch_stable.html
+```
+
+If you do not have CUDA 12.1 or need a CPU-only build, install the matching CPU/compatible wheel instead (omit `+cu121` or follow the official PyTorch install selector at https://pytorch.org).
+
+- **Detectron2** — platform-specific instructions:
+
+- Windows (pre-built wheels):
+
+```bash
+pip install detectron2 --extra-index-url https://myhloli.github.io/wheels/
+```
+
+- Linux (install from upstream):
+
+```bash
+pip install git+https://github.com/facebookresearch/detectron2.git
+```
+
+- **PupilLIMlab package** — install the project package from PyPI (or your registry):
+
+```bash
+pip install PupilLIMlabSWC
+```
+
+After these steps you should be able to run the example scripts and the PupilSense inference tools.
+
 
 ## Quick start
 

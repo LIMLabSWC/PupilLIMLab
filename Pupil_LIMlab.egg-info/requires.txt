@@ -17,4 +17,3 @@ pycocotools
 python-dotenv
 imageio[ffmpeg]
 scikit-learn
-pyav

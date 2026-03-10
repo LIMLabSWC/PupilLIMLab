@@ -1,4 +1,5 @@
 name: Publish to PyPI
+
 on:
   push:
     tags:
@@ -10,20 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
-    
-    - name: Install dependencies
+        cache: "pip"
+
+    - name: Install System Dependencies
+      # Ubuntu runners need these for OpenCV and imageio[ffmpeg] to work
       run: |
-        pip install "numpy<2" pytest matplotlib pandas scipy
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg libgl1-mesa-glx
+
+    - name: Install PyTorch (CPU version)
+      # We use the CPU version for testing to make the runner faster/lighter
+      run: |
+        pip install torch==2.2.0 torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cpu
+
+    - name: Install Detectron2
+      # Linux can build this from Git easily once Torch is present
+      run: |
+        pip install --no-build-isolation 'git+https://github.com/facebookresearch/detectron2.git'
+
+    - name: Install Pupil_LIMlab
+      run: |
         pip install -e .
-        
+
     - name: Run Pytest
       run: pytest
-
-    
 
   build-n-publish:
     name: Build and publish to PyPI
@@ -33,23 +49,23 @@ jobs:
       name: pypi
       url: https://pypi.org/p/Pupil_LIMlab
     permissions:
-      id-token: write
+      id-token: write  # Required for Trusted Publishing
       contents: read
 
     steps:
     - uses: actions/checkout@v4
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
-        cache: "pip"
 
     - name: Install build tool
       run: pip install build
     
     - name: Build binary
       run: |
-        rm -rf dist/   # Force delete any existing dist folder
+        rm -rf dist/
         python -m build
 
     - name: Publish to PyPI
