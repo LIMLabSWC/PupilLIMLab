@@ -100,7 +100,3 @@ pytest -q
 ## Contributing
 
 Contributions welcome. Please open issues or pull requests and follow existing code style. Add tests for any behavior changes.
-
-## License
-
-This repository does not include a license file. Add a `LICENSE` if you intend to publish.
