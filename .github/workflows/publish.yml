@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: # Allows you to run this manually for testing
 
 jobs:
   test:
@@ -19,20 +20,21 @@ jobs:
         cache: "pip"
 
     - name: Install System Dependencies
-      # Ubuntu runners need these for OpenCV and imageio[ffmpeg] to work
+      # Fixes the 'libgl1-mesa-glx' error by using modern packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg libgl1-mesa-glx
+        sudo apt-get install -y ffmpeg libgl1 libglx-mesa0 libglib2.0-0
 
-    - name: Install PyTorch (CPU version)
-      # We use the CPU version for testing to make the runner faster/lighter
+    - name: Install PyTorch (CPU)
+      # Must be installed separately before Detectron2
       run: |
         pip install torch==2.2.0 torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cpu
+        pip install ninja wheel setuptools
 
     - name: Install Detectron2
-      # Linux can build this from Git easily once Torch is present
+      # --no-build-isolation is the key to preventing the 'Getting Requirements' error
       run: |
-        pip install --no-build-isolation 'git+https://github.com/facebookresearch/detectron2.git'
+        pip install --no-build-isolation git+https://github.com/facebookresearch/detectron2.git
 
     - name: Install Pupil_LIMlab
       run: |
@@ -49,7 +51,7 @@ jobs:
       name: pypi
       url: https://pypi.org/p/Pupil_LIMlab
     permissions:
-      id-token: write  # Required for Trusted Publishing
+      id-token: write
       contents: read
 
     steps:
