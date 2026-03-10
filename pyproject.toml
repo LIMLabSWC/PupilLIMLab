@@ -1,6 +1,6 @@
 [project]
 name = "Pupil_LIMlab"
-version = "1.0.5.8"
+version = "1.0.5.9"
 description = "A pupil analysis and inference toolkit"
 readme = "README.md"
 authors = [{name = "Dammy", email = "a.aonih@ucl.ac.uk"}]
