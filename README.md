@@ -1,3 +1,5 @@
+[![PyPI version](https://img.shields.io/pypi/v/Pupil_LIMlab.svg)](https://pypi.org/project/Pupil_LIMlab/)
+
 # PupilToolKit
 
 *A lightweight toolkit for pupil tracking and processing used by LIM Lab.*
@@ -9,7 +11,7 @@ PupilToolKit provides utilities and pipelines for pupil extraction, processing, 
 - `PupilProcessing`: processing pipelines and utility functions.
 - `PupilSense`: integration with PupilSense inference tools and example scripts.
 
-Configuration files for experiments and devices are stored in the `configs/` directory.
+Example configuration files for experiments and devices are stored in the `configs/` directory.
 
 ## Features
 
@@ -19,7 +21,7 @@ Configuration files for experiments and devices are stored in the `configs/` dir
 
 ## Requirements
 
-- Python 3.8+ (recommended)
+- Python 3.10+ (recommended)
 - Typical scientific packages: `numpy`, `scipy`, etc. (see `pyproject.toml` / `setup.py`)
 
 Create and activate a virtual environment before installing:
@@ -61,7 +63,7 @@ pip install detectron2 --extra-index-url https://myhloli.github.io/wheels/
 - Linux (install from upstream):
 
 ```bash
-pip install git+https://github.com/facebookresearch/detectron2.git
+pip install --no-build-isolation git+https://github.com/facebookresearch/detectron2.git
 ```
 
 - **PupilLIMlab package** — install the project package from PyPI (or your registry):
