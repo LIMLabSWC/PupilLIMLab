@@ -1,6 +1,6 @@
 [project]
 name = "Pupil_LIMlab"
-version = "1.0.5.9"
+version = "1.1"
 description = "A pupil analysis and inference toolkit"
 readme = "README.md"
 authors = [{name = "Dammy", email = "a.aonih@ucl.ac.uk"}]
@@ -12,7 +12,7 @@ dependencies = [
     "scipy < 1.13", 
     "pyyaml", 
     "tqdm", 
-    "XdetectionCore >= 0.1.7.3",
+    "XdetectionCore >= 0.1.7.4",
     "pytest",
     "loguru",
     "rich",
