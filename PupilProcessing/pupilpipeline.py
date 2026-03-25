@@ -88,7 +88,11 @@ class Pipeline:
         self.pool_results = None
         daterange = [sorted(date_list)[0], sorted(date_list)[-1]]
 
-        self.trial_data = load_aggregate_td_df(session_topology,tdatadir,)
+        self.trial_data = load_aggregate_td_df(session_topology,tdatadir.parent.parent,)
+        print(f'loaded trial data with shape {self.trial_data.shape}, index levels: {self.trial_data.index.names}')
+        # reorder index to name date sess trial num
+        self.trial_data = self.trial_data.reorder_levels(['name', 'date', 'sess', 'trial_num'])
+        
         # for col in self.trial_data.keys():
         #     if 'Time' in col or 'Start' in col or 'End' in col:
         #         if 'Wait' not in col and 'dt' not in col and col.find('Harp') == -1 and col.find(
@@ -153,7 +157,6 @@ class Pipeline:
         self.dlc_snapshot = dlc_snapshot
 
         today = datetime.strftime(datetime.now(),'%y%m%d')
-        self.figdir = Path(r'figures',today)
 
     def load_pre_processed(self,pre_pklname:pathlib.Path):
         if self.preprocessed_pklname.exists():
@@ -239,14 +242,11 @@ class Pipeline:
             if self.zscore:
                 pclass.zScore()
 
-        # pclass.plot(self.figdir,saveName=f'{name}_{pdf_colname}',)
-
         return pclass.pupilDiams, pclass.isOutlier, pupil_diams_nozscore,pupil_diams_uni, pupil_diams_no_outs, pupil_diams_int
 
     # @logger.catch
     def load_pdata(self):
-        if not self.figdir.is_dir():
-            self.figdir.mkdir()
+
         if self.pklname.exists() and self.overwrite is False:
             self.data = dict()
             self.data = joblib.load(self.pklname.with_suffix('.joblib'))
@@ -282,7 +282,7 @@ class Pipeline:
                 continue
             if name in existing_sessions:
                 continue
-            if date not in self.trial_data.loc[animal].index.get_level_values('date'):
+            if date not in self.trial_data.xs(animal,level='name').index.get_level_values('date'):
                 continue
             session_TD = self.trial_data.loc[animal, date].copy().dropna(axis=1)
             if 'RewardProb' in session_TD.columns and 'prob' not in self.protocol:
@@ -353,7 +353,9 @@ class Pipeline:
             return None, None
 
         # ---- Load pupil data ----
-        animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
+        try:animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
+        except Exception as e:
+            logger.error(f"{name}: Pupil data load failed - {e}")
         sess_recdirs = [s for s, m in zip(sess_recdirs, sess_recdirs_mask) if m]
         if not animal_pupil_dfs:
             return None, None
@@ -519,10 +521,9 @@ class Pipeline:
                 # Align timestamps
                 
                 rec["Timestamp_adj"] = rec["Timestamp"] - rec["Timestamp"].iloc[0]
-                harp_sync_ttl_offest_secs = cam_ttls[0] - session_TD['Harp_time'].iloc[0]
-                new_times = rec['Timestamp_adj'].apply(lambda e:session_TD['Bonsai_time_dt'].iloc[0]
+                harp_sync_ttl_offest_secs = cam_ttls[0] - session_TD['Harp_Time'].iloc[0]
+                new_times = rec['Timestamp_adj'].apply(lambda e:session_TD['Bonsai_Time_dt'].iloc[0]
                                                        +timedelta(seconds=float(e)/1e9+harp_sync_ttl_offest_secs))
-                bonsai0 = rec.get("Bonsai_Time_dt", pd.Series([pd.NaT]))[0]
                 df = pd.DataFrame()
                 df["frametime"] = new_times
                 df["timestamp"] = (rec["Timestamp_adj"].values/1e9)+cam_ttls[0]
