@@ -9,28 +9,20 @@ from pathlib import Path
 import yaml
 from loguru import logger
 from rich.logging import RichHandler
+from rich.traceback import install
+from rich.console import Console
 from pyinspect import install_traceback
 import argparse
 import platform
 from datetime import datetime
 
 if __name__ == "__main__":
-    install_traceback()
-
-    logger.configure(
-        handlers=[{"sink": RichHandler(markup=True), "format": "{message}"}]
-    )
-    logger.info('started and loading config')
-    today_str = datetime.today().date().strftime('%y%m%d')
-    logger_path = Path.cwd()/f'log'/f'log_{today_str}.txt'
-    logger_path = utils.unique_file_path(logger_path)
-    # logger.add(logger_path,level='INFO')
 
     install_traceback()
     logger.configure(
         handlers=[{"sink": RichHandler(markup=True), "format": "{message}"}]
     )
-
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_file', required=True)
     parser.add_argument('-date', default=None)

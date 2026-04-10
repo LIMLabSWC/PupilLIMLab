@@ -6,7 +6,6 @@ from detectron2.engine import DefaultPredictor
 from detectron2.utils.visualizer import Visualizer
 
 
-
 class Inference:
     def __init__(self, config_path: str, model_path: str, **kwargs):
         """
@@ -37,6 +36,11 @@ class Inference:
         print(f"Using device: {self.device}")
         
         self.predictor = self.get_predictor(config_path, model_path)
+        # if platform.system() == 'Linux':
+        #     try:
+        #         self.predictor.model = torch.compile(self.predictor.model)
+        #     except Exception as e:
+        #         print(f"Error occurred while compiling the model: {e}")
 
     def get_predictor(self, cfg_path: str, model_path) -> DefaultPredictor:
         """
@@ -56,7 +60,8 @@ class Inference:
         cfg.MODEL.WEIGHTS = model_path  # path to the model we just trained
         cfg.MODEL.DEVICE = self.device #configuring the device for inference
         cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.9   # set a custom testing threshold
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.95  # Only return high-confidence pupils
+        cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 5          # Only look at the top 10 candidates
 
         return DefaultPredictor(cfg)
 
@@ -162,6 +167,20 @@ class Inference:
         cap.release()
         print(f"Processed {frame_id} frames. Found {len(pupil_radius_list)} pupil instances.")
         return pupil_radius_list
+    
+    def predict_batch(self, inputs):
+        """
+        Runs inference on a pre-formatted batch of images.
+        Inputs: List of dicts [{"image": tensor}, ...]
+        """
+        model = self.predictor.model 
+        model.eval()
+        
+        with torch.no_grad():
+            # Keep FP16 enabled for speed
+            with torch.cuda.amp.autocast(): 
+                # Just pass the inputs directly to the model
+                return model(inputs)
 
 def get_center_and_radius(bbox):
     """

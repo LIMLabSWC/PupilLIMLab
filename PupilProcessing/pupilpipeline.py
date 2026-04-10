@@ -3,11 +3,15 @@ import pandas as pd
 
 from .psychophysicsUtils import *
 from . import utils
-from xdetectioncore.behaviour import load_aggregate_td_df, add_datetimecol
+from xdetectioncore.behaviour import add_datetimecol
+from xdetectioncore.paths import posix_from_win
+from xdetectioncore.io_utils import extract_date
 from datetime import datetime, timedelta,timezone
 import numpy as np
 from copy import deepcopy as copy
 import pathlib
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pathlib import Path
 from loguru import logger
 from pyinspect import install_traceback
@@ -87,26 +91,7 @@ class Pipeline:
         self.existing_sessions = None
         self.pool_results = None
         daterange = [sorted(date_list)[0], sorted(date_list)[-1]]
-
-        self.trial_data = load_aggregate_td_df(session_topology,tdatadir.parent.parent,)
-        print(f'loaded trial data with shape {self.trial_data.shape}, index levels: {self.trial_data.index.names}')
-        # reorder index to name date sess trial num
-        self.trial_data = self.trial_data.reorder_levels(['name', 'date', 'sess', 'trial_num'])
         
-        # for col in self.trial_data.keys():
-        #     if 'Time' in col or 'Start' in col or 'End' in col:
-        #         if 'Wait' not in col and 'dt' not in col and col.find('Harp') == -1 and col.find(
-        #                 'Bonsai') == -1 and 'Lick' not in col:
-        #             self.trial_data[f'{col}_scalar'] = [scalarTime(t) for t in self.trial_data[col]]
-
-        # format trial data df
-        try:
-            self.trial_data = self.trial_data.drop(columns=['RewardCross_Time','WhiteCross_Time'])
-        except KeyError:
-            pass
-        # add datetime cols
-        # self.trial_data['Reaction_time'] = self.trial_data['Trial_End_dt']-(self.trial_data['Trial_Start_dt'] +
-        #                                                                     self.trial_data['Stim1_Duration'])
         self.animals = names
         self.anon_animals = [f'Subject {i}' for i in range(len(self.animals))]  # give animals anon labels
         self.dates = date_list
@@ -120,6 +105,12 @@ class Pipeline:
         self.outlier_params = outlier_params
         self.data = {}
         self.preprocessed_pklname = preprocess_pklname
+
+        # Define a directory for the Parquet store instead of a single .joblib file
+        self.store_path = Path(pkl_filename).with_suffix('') # Remove .pkl/joblib extension
+        logger.info(f"Parquet store path set to: {self.store_path}")
+        self.store_path.mkdir(parents=True, exist_ok=True)
+
         if self.preprocessed_pklname == '':
             self.preprocessed_pklname = r'pickles\generic_name_plschange.pkl'
         self.preprocessed_pklname = Path(self.preprocessed_pklname)
@@ -144,26 +135,63 @@ class Pipeline:
         self.run_multiprocess = kwargs.get('run_multiprocess',True)
 
         if isinstance(session_topology,pd.DataFrame):
-            # assert isinstance(session_topology,pd.DataFrame)
-            all_sessnames = set(list(zip(session_topology['name'],session_topology['date'])))
-            self.paireddirs = {f'{sessname[0]}_{sessname[1]}':
-                                   session_topology.query('name == @sessname[0] and date == @sessname[1]')['videos_dir'].tolist()
-                               for sessname in all_sessnames}
-            self.paired_sessinfo = {f'{sessname[0]}_{sessname[1]}':
-                                        session_topology.query('name == @sessname[0] and date == @sessname[1]')
-                                    for sessname in all_sessnames}
+            if 'suffix' in session_topology.columns:
+                session_topology['session_id'] = [f'{n}_{d}_{sfx:03d}' for n,d,sfx in 
+                                                  zip(session_topology['name'],session_topology['date'],session_topology['suffix'])]
+                # session_topology.set_index('session_id', inplace=True)
+                self.paireddirs = {row['session_id']: row['videos_dir'] 
+                               for _, row in session_topology.iterrows()}
+                self.paired_sessinfo = {row['session_id']: row for _, row in session_topology.iterrows()}
+            else:
+                all_sessnames = set(list(zip(session_topology['name'],session_topology['date'])))
+                self.paireddirs = {f'{sessname[0]}_{sessname[1]}':
+                                    session_topology.query('name == @sessname[0] and date == @sessname[1]')['videos_dir'].tolist()
+                                for sessname in all_sessnames}
+                self.paired_sessinfo = {f'{sessname[0]}_{sessname[1]}':
+                                            session_topology.query('name == @sessname[0] and date == @sessname[1]')
+                                        for sessname in all_sessnames}
         else:
             raise ValueError('session_topology must be a DataFrame')
         self.dlc_snapshot = dlc_snapshot
 
         today = datetime.strftime(datetime.now(),'%y%m%d')
 
+        self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,sess_info['suffix']) 
+                           for sessname, sess_info in self.paired_sessinfo.items()}
+
+    def load_td_df(self,td_csv_path,home_dir:Path,sffx=''):
+        td_csv_path = home_dir / posix_from_win(td_csv_path,'/nfs/nhome/live/aonih')
+        td_df = pd.read_csv(td_csv_path)
+        if td_df.empty:
+            logger.warning(f'Trial data CSV at {td_csv_path} is empty.')
+            return pd.DataFrame()  # Return empty DataFrame if CSV is empty
+        for col in ['RewardCross_Time','WhiteCross_Time']:
+            if col in td_df.columns:
+                td_df.drop(columns=[col], inplace=True)
+
+        td_fn = td_csv_path.stem
+        name = td_fn.split('_')[0]
+        date = td_fn.split('_')[2]
+        sessname = f'{name}_{date}_{sffx}' if sffx else f'{name}_{date}'
+        # add cols to td_df
+        td_df['name'] = name
+        td_df['date'] = date
+        td_df['sess'] = sessname
+        td_df['trial_num'] = np.arange(len(td_df))
+        # set index to name date sess trial num
+        td_df.set_index(['name','date','sess','trial_num'], inplace=True)
+
+        [add_datetimecol(td_df,col) for col in ['Time','Trial_Start','Trial_End','Bonsai_Time'] 
+         if col in td_df.columns]
+        
+        return td_df
+
     def load_pre_processed(self,pre_pklname:pathlib.Path):
         if self.preprocessed_pklname.exists():
             with open(pre_pklname,'rb') as pklfile:
                 preprocessed_data = pickle.load(pklfile)
         else:
-            'print pre processed pkl not found'
+            logger.warning(f'Pre-processed pickle file not found: {self.preprocessed_pklname}')
             preprocessed_data = {}
         return preprocessed_data
 
@@ -245,7 +273,7 @@ class Pipeline:
         return pclass.pupilDiams, pclass.isOutlier, pupil_diams_nozscore,pupil_diams_uni, pupil_diams_no_outs, pupil_diams_int
 
     # @logger.catch
-    def load_pdata(self):
+    # def load_pdata(self):
 
         if self.pklname.exists() and self.overwrite is False:
             self.data = dict()
@@ -330,7 +358,106 @@ class Pipeline:
         # with open(self.preprocessed_pklname, 'ab') as pklfile:
         joblib.dump(self.preprocessed, self.preprocessed_pklname.with_suffix('.joblib'))
 
+    def save_to_parquet(self, name):
+        """
+        Saves a specific session's pupildf to the partitioned store.
+        Environment agnostic and allows for lazy loading.
+        """
+        if name not in self.data or self.data[name].pupildf is None:
+            return
+
+        df = self.data[name].pupildf.copy()
         
+        # Add the derivable key as a column for Hive partitioning
+        df['session_id'] = name 
+
+        # Save to partitioned directory: store_path/session_id=name/data.parquet
+        df.to_parquet(
+            self.store_path,
+            index=True,
+            partition_cols=['session_id'],
+            engine='pyarrow',
+            existing_data_behavior='overwrite_or_ignore'
+        )
+        logger.info(f"Session {name} saved to Parquet store.")
+
+    def load_session_lazy(self, name):
+        """
+        Lazy method: Only loads data for this specific session from disk.
+        """
+        try:
+            return pd.read_parquet(
+                self.store_path, 
+                filters=[('session_id', '==', name)],
+                engine='pyarrow'
+            )
+        except Exception as e:
+            logger.error(f"Could not lazy load {name}: {e}")
+            return None
+
+    def load_pdata(self):
+        """Modified to ensure self.sessions is always populated for lazy access."""
+
+        # 1. Discover what is already on disk (The 'Derivable' Keys)
+        existing_sessions = []
+        if self.store_path.exists():
+            existing_sessions = [
+                d.name.split('=')[1] 
+                for d in self.store_path.glob('session_id=*')
+            ]
+            logger.info(f"Found {len(existing_sessions)} sessions in Parquet store.")
+
+        # 2. Populate self.sessions for ALL potential sessions in the topology
+        # This ensures self.sessions is NOT empty even if data is already processed.
+        self.sessions = {}
+        logger.debug(f'len trial data dict = {len(self.trial_data)}')
+        for name in self.paireddirs:
+           
+            animal = name.split('_')[0]
+            date = name.split('_')[1]
+
+            
+            # Validation logic (keep your existing filters here)
+            if date not in self.trial_data[name].index.get_level_values('date'):
+                continue
+                
+            session_TD = self.trial_data[name].loc[animal, date].copy().dropna(axis=1)
+            
+            # Set indices as per your original pipeline
+            if 'Time_dt' in session_TD.columns:
+                session_TD.set_index('Time_dt', append=True, inplace=True)
+            else:
+                session_TD.set_index('Trial_Start_dt', append=True, inplace=True)
+                
+            self.sessions[name] = session_TD
+            # Initialize the container object
+            if name not in self.data:
+                self.data[name] = pupilDataClass(animal)
+
+        # 3. Filter for sessions that actually need processing (Redo or Missing)
+        logger.debug(f'Total sessions in topology: {len(self.sessions)}')
+        sess2run = [sess for sess in self.sessions if sess not in existing_sessions]
+        if self.redo:
+            sess2run = list(set(sess2run + [r for r in self.redo if r in self.sessions]))
+
+        if not sess2run:
+            logger.info("All sessions already present in Parquet store. Nothing to process.")
+            return
+
+        # 4. Run Processing
+        if self.run_multiprocess:
+            with multiprocessing.Pool(16) as pool:
+                results = pool.map(self.read_and_process, sess2run)
+        else:
+            results = [self.read_and_process(sess) for sess in tqdm(sess2run)]
+
+        # 5. Save New Results to Parquet
+        for sess_name, result in zip(sess2run, results):
+            if result is not None and result[0] is not None:
+                self.data[sess_name].pupildf = result[0]
+                self.data[sess_name].trialData = self.sessions[sess_name]
+                self.save_to_parquet(sess_name)
+
     def read_and_process(self, name: str):
         """Main entrypoint: orchestrates reading + processing pupil data for a session."""
 
@@ -338,21 +465,23 @@ class Pipeline:
             return None, None
 
         logger.info(f"Checking {name}")
-        animal, date = name.split("_")
+        animal = name.split("_")[0]
         session_TD = self.sessions[name]
-
-        # Ensure data container exists
-        self.data[name] = pupilDataClass(animal)
-
-        if self.preprocessed.get(name):  # Already processed
-            return self.finalize(name)
 
         # ---- Get session directory ----
         sess_recdirs = self._get_session_dirs(name)
         if sess_recdirs is None:
             return None, None
+                # Ensure data container exists
+        self.data[name] = pupilDataClass(animal)
+
+        if self.preprocessed.get(name):  # Already processed
+            return self.finalize(name)
+
+
 
         # ---- Load pupil data ----
+        animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
         try:animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
         except Exception as e:
             logger.error(f"{name}: Pupil data load failed - {e}")
@@ -393,7 +522,7 @@ class Pipeline:
             logger.error(f"No session dir for {name}")
             return None
 
-        if isinstance(sess_recdirs, str):
+        if isinstance(sess_recdirs, str|Path):
             sess_recdirs = [sess_recdirs]
 
         return sess_recdirs
@@ -453,13 +582,18 @@ class Pipeline:
         return None,None
 
     def _load_ttl_and_recs(self, name, sess_recdirs:list):
+
         """Load TTL files and recording timestamp CSVs."""
         harp_bin_dir = self.pdir.parent.parent / "harpbins"
 
         # Handle paired_sessinfo override
         if not self.paired_sessinfo.get(name, pd.DataFrame).empty:
             event92_files = []
-            for _,sess_info in self.paired_sessinfo[name].iterrows():
+            if isinstance(self.paired_sessinfo[name], pd.Series):
+                _sess_info = self.paired_sessinfo[name].to_frame().T
+            else:
+                _sess_info = self.paired_sessinfo[name]
+            for _,sess_info in _sess_info.iterrows():
                 beh_bin_path = Path(sess_info["beh_bin"])
                 path_overlap = min([list(self.pdir.parts).index(e) for e in beh_bin_path.parts if e in self.pdir.parts])
                 _overlap = list(beh_bin_path.parts).index(self.pdir.parts[path_overlap])
@@ -481,15 +615,23 @@ class Pipeline:
 
         # Read rec CSVs
         recdir_list = sess_recdirs
-        first_file = Path(recdir_list[0], f"{name}_eye0_timestamps.csv")
-        if not first_file.is_file():
-            logger.error(f"No file for {name} in {recdir_list[0]}")
+        # Find avi in first recdir to confirm path validity
+        vid_fps = [next(Path(rec).glob("*.avi"), None) for rec in recdir_list]
+        vid_fp = vid_fps[0] if vid_fps else None
+        if vid_fp is None:
+            logger.error(f"No .avi file found in {recdir_list[0]}")
+            return None, None
+
+        ts_files = [vid_fp.with_name(vid_fp.name.replace("_eye0.avi", "_eye0_timestamps.csv")) 
+                    for vid_fp in vid_fps]
+        if not all(ts_file.is_file() for ts_file in ts_files):
+            logger.error(f"No timestamp file for {name} in {recdir_list[0]}")
             return None, None
 
         try:
             recs_list = [
-                pd.read_csv(Path(rec, f"{name}_eye0_timestamps.csv"))
-                for rec in recdir_list
+                pd.read_csv(ts_file)
+                for ts_file in ts_files
             ]
         except pd.errors.EmptyDataError:
             logger.error(f"Issue with {' '.join(map(str, recdir_list))}")
@@ -500,7 +642,7 @@ class Pipeline:
     def _align_pupil_with_ttl(self, name, recs_list, event92_df_list, session_TD):
         """Align pupil timestamps with TTL events, handling mismatches."""
         aligned_dfs = []
-        animal, date = name.split("_")
+        date = name.split("_")[1]
         for ri, (rec,ttl_df) in enumerate(zip(recs_list,event92_df_list)):
             if rec.empty or ttl_df is None or ttl_df.empty:
                 logger.error(f"Recording for {name} empty")
@@ -564,7 +706,7 @@ class Pipeline:
         dfs = []
         for rec_ix, rec in enumerate(sess_recdir):
             try:
-                path = Path(rec) / f"{name}_eye0_eye_ellipse.csv"
+                path = next(Path(rec).glob(f"*eye0_eye_ellipse.csv"))
                 ps_df = pd.read_csv(path)
                 min_len = min(len(animal_pupil_dfs[rec_ix]), len(ps_df))
                 ps_df = ps_df.iloc[:min_len]
@@ -621,7 +763,6 @@ class Pipeline:
         cols2process = self._build_cols_to_process()
 
         for animal_pupil_subset in self.preprocessed[name]:
-            animal, date = name.split("_")
             pupilclass = self._init_pupil_class(name, animal_pupil_subset)
             if pupilclass is None:
                 continue
@@ -668,7 +809,7 @@ class Pipeline:
             logger.critical(f"<NO DFs FOR {name}>")
             return None, None
 
-        self.data[name].trialData = self.trial_data.loc[animal, date]
+        self.data[name].trialData = self.trial_data[name]
 
         return self.data[name].pupildf, self.preprocessed[name]
 
