@@ -156,11 +156,13 @@ class Pipeline:
 
         today = datetime.strftime(datetime.now(),'%y%m%d')
 
-        self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,sess_info['suffix']) 
+        self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,tdatadir.parent,sess_info['suffix']) 
                            for sessname, sess_info in self.paired_sessinfo.items()}
 
-    def load_td_df(self,td_csv_path,home_dir:Path,sffx=''):
-        td_csv_path = home_dir / posix_from_win(td_csv_path,'/nfs/nhome/live/aonih')
+    def load_td_df(self,td_csv_path,home_dir:Path,td_dir:Path,sffx='',):
+        td_path_as_posix = posix_from_win(td_csv_path,'/nfs/nhome/live/aonih')
+        path_overlap = td_path_as_posix.parts.index(td_dir.parts[-1])
+        td_csv_path = home_dir / td_dir.parts[-1]/ Path(*td_path_as_posix.parts[path_overlap+1:])
         td_df = pd.read_csv(td_csv_path)
         if td_df.empty:
             logger.warning(f'Trial data CSV at {td_csv_path} is empty.')
