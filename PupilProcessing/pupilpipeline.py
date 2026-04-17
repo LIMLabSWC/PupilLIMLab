@@ -158,6 +158,7 @@ class Pipeline:
 
         self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,tdatadir.parent,sess_info['suffix']) 
                            for sessname, sess_info in self.paired_sessinfo.items()}
+        logger.debug(f'Loaded trial data for sessions: {list(self.trial_data.keys())}')
 
     def load_td_df(self,td_csv_path,home_dir:Path,td_dir:Path,sffx='',):
         td_path_as_posix = posix_from_win(td_csv_path,'/nfs/nhome/live/aonih')
@@ -670,7 +671,8 @@ class Pipeline:
                                                        +timedelta(seconds=float(e)/1e9+harp_sync_ttl_offest_secs))
                 df = pd.DataFrame()
                 df["frametime"] = new_times
-                df["timestamp"] = (rec["Timestamp_adj"].values/1e9)+cam_ttls[0]
+                # df["timestamp"] = (rec["Timestamp_adj"].values/1e9)+cam_ttls[0]
+                df["timestamp"] = cam_ttls.values[-len(df):]
                 aligned_dfs.append(df)
             else:
                 aligned_dfs.append(rec)

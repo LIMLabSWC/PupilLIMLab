@@ -138,6 +138,8 @@ def main(eye_video_paths, invert_gray_im, **kwargs):
         out_dir = Path(eye_video_path).parent / 'sample_detection'
         out_dir.mkdir(parents=True, exist_ok=True)
         infer = Inference(str(kwargs['config_path']), str(kwargs['model_path']), im_out_dir=out_dir)
+        eye_csvname = (eye_video_path.with_stem(f'{eye_video_path.stem}_eye_ellipse')).with_suffix('.csv')
+
         
         vr = decord.VideoReader(str(eye_video_path), ctx=decord.cpu(0))
         ellipse_output = []
@@ -164,13 +166,15 @@ def main(eye_video_paths, invert_gray_im, **kwargs):
                 save_snapshot(i, eye_frame_bgr, output, params, x1, y1, infer)
 
         df = pd.DataFrame(ellipse_output, columns=['frame_num','radius','height','xc','yc','score','angle'])
-        df.to_csv(out_dir / f"{Path(eye_video_path).stem}_pupil.csv", index=False)
+        df.to_csv(eye_csvname, index=False)
 
 
 def main_gpu(eye_video_paths, invert_gray_im, **kwargs):
     for eye_video_path in eye_video_paths:
         out_dir = Path(eye_video_path).parent / 'sample_detection'
         out_dir.mkdir(parents=True, exist_ok=True)
+        eye_csvname = (eye_video_path.with_stem(f'{eye_video_path.stem}_eye_ellipse')).with_suffix('.csv')
+
         
         infer = Inference(str(kwargs['config_path']), str(kwargs['model_path']), im_out_dir=out_dir)
         # Use GPU context for decord
@@ -220,16 +224,16 @@ def main_gpu(eye_video_paths, invert_gray_im, **kwargs):
                     save_snapshot(frame_idx, batch_frames[i], output, params, x1, y1, infer)
 
         df = pd.DataFrame(ellipse_output, columns=['frame_num','radius','height','xc','yc','score','angle'])
-        df.to_csv(out_dir / f"{Path(eye_video_path).stem}_pupil.csv", index=False)
+        df.to_csv(eye_csvname, index=False)
 
 
 if __name__ == "__main__":
-    kill_zombie_python_processes()
+    # kill_zombie_python_processes()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("eye_video_paths")
     parser.add_argument("--invert",default=0,type=int)
-    parser.add_argument("--pupilsense_config_file",default='configs/pupil_sense.yaml',type=str)
+    parser.add_argument("--pupilsense_config_file",default='pupilsense_config.yaml',type=str)
     parser.add_argument("--use_gpu", action='store_true', help='Use GPU for inference if available.')
 
     print('Running pupil detection on eye video')
@@ -252,11 +256,11 @@ if __name__ == "__main__":
                        for eye_video_path in args.eye_video_paths.split(';')]
 
     if args.use_gpu and torch.cuda.is_available():
-        print("GPU detected. Running inference on GPU.")
+        print("GPU detected. Loading videos via GPU.")
         main_gpu(eye_video_paths, args.invert, 
                  config_path=config_path, model_path=model_path, num_frames=num_frames)
     else:
-        print("No GPU detected or --use_gpu not set. Running inference on CPU.")
+        print("No GPU detected or --use_gpu not set. Loading videos via CPU.")
         main(eye_video_paths, args.invert,
              config_path=config_path, model_path=model_path, num_frames=num_frames)
 
