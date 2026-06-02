@@ -16,6 +16,17 @@ import argparse
 import platform
 from datetime import datetime
 
+
+def gen_implied_suffix(sess_top_df):
+    # group by name and date
+    grouped = sess_top_df.groupby(['name', 'date'])
+    # iterate through starting at 000 and increment
+    implied_suffixes = []
+    for (name, date), group in grouped:
+        sffxs = [f'{sess_i:03d}' for sess_i in range(len(group))]
+        implied_suffixes.extend(sffxs)
+    return implied_suffixes
+
 if __name__ == "__main__":
 
     install_traceback()
@@ -68,6 +79,10 @@ if __name__ == "__main__":
     if use_session_topology:
         sess_top_path = ceph_dir/posix_from_win(config['session_topology_path'])
         session_topology = pd.read_csv(sess_top_path)
+        session_topology['implied_suffix'] = gen_implied_suffix(session_topology)
+        session_topology = session_topology.dropna(subset=['videos_dir', 'tdata_file']).copy()
+        if 'status' in session_topology.columns:
+            session_topology = session_topology[session_topology['status']=='Complete'].copy()
         session_topology['videos_dir'] = session_topology['videos_dir'].apply(lambda x: ceph_dir/posix_from_win(x))
         animals2process = session_topology['name'].unique().tolist()
         dates2process = session_topology['date'].unique().astype(str).tolist()
@@ -104,7 +119,7 @@ if __name__ == "__main__":
         preprocess_pkl = f'{config["pklname_suffix"]}.pkl'
     to_redo = config.get('sess_to_redo',[])
     if to_redo:
-        _to_redo = [[e] if len(e.split('_')) == 2  else
+        _to_redo = [[e] if len(e.split('_')) == 2 else
                     [f'{ee}_{e}' for ee in session_topology.query(f'date=="{e}"')['name']] if e.isnumeric() else
                     [f'{e}_{ee}' for ee in session_topology.query(f'name=="{e}"')['date']] for e in to_redo]
         to_redo = sum(_to_redo, [])
