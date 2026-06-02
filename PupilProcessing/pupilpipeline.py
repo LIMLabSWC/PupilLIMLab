@@ -138,25 +138,22 @@ class Pipeline:
             if 'suffix' in session_topology.columns:
                 session_topology['session_id'] = [f'{n}_{d}_{sfx:03d}' for n,d,sfx in 
                                                   zip(session_topology['name'],session_topology['date'],session_topology['suffix'])]
-                # session_topology.set_index('session_id', inplace=True)
-                self.paireddirs = {row['session_id']: row['videos_dir'] 
-                               for _, row in session_topology.iterrows()}
-                self.paired_sessinfo = {row['session_id']: row for _, row in session_topology.iterrows()}
             else:
-                all_sessnames = set(list(zip(session_topology['name'],session_topology['date'])))
-                self.paireddirs = {f'{sessname[0]}_{sessname[1]}':
-                                    session_topology.query('name == @sessname[0] and date == @sessname[1]')['videos_dir'].tolist()
-                                for sessname in all_sessnames}
-                self.paired_sessinfo = {f'{sessname[0]}_{sessname[1]}':
-                                            session_topology.query('name == @sessname[0] and date == @sessname[1]')
-                                        for sessname in all_sessnames}
+                session_topology['session_id'] = [f'{n}_{d}_{sfx}' for n,d,sfx in
+                                                  zip(session_topology['name'],session_topology['date'],session_topology['implied_suffix'])]
+                # session_topology.set_index('session_id', inplace=True)
+            self.paireddirs = {row['session_id']: row['videos_dir']
+                           for _, row in session_topology.iterrows()}
+            self.paired_sessinfo = {row['session_id']: row for _, row in session_topology.iterrows()}
+
         else:
             raise ValueError('session_topology must be a DataFrame')
         self.dlc_snapshot = dlc_snapshot
 
         today = datetime.strftime(datetime.now(),'%y%m%d')
 
-        self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,tdatadir.parent,sess_info['suffix']) 
+        # self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,tdatadir.parent,sess_info['suffix']) 
+        self.trial_data = {sessname: self.load_td_df(sess_info['tdata_file'],tdatadir.parent.parent,tdatadir.parent,) 
                            for sessname, sess_info in self.paired_sessinfo.items()}
         logger.debug(f'Loaded trial data for sessions: {list(self.trial_data.keys())}')
 
@@ -164,7 +161,11 @@ class Pipeline:
         td_path_as_posix = posix_from_win(td_csv_path,'/nfs/nhome/live/aonih')
         path_overlap = td_path_as_posix.parts.index(td_dir.parts[-1])
         td_csv_path = home_dir / td_dir.parts[-1]/ Path(*td_path_as_posix.parts[path_overlap+1:])
-        td_df = pd.read_csv(td_csv_path)
+        try:
+            td_df = pd.read_csv(td_csv_path)
+        except pd.errors.EmptyDataError:
+            td_df = pd.DataFrame()
+
         if td_df.empty:
             logger.warning(f'Trial data CSV at {td_csv_path} is empty.')
             return pd.DataFrame()  # Return empty DataFrame if CSV is empty
@@ -175,6 +176,8 @@ class Pipeline:
         td_fn = td_csv_path.stem
         name = td_fn.split('_')[0]
         date = td_fn.split('_')[2]
+        if not date.isnumeric():
+            date = date[:6]
         sessname = f'{name}_{date}_{sffx}' if sffx else f'{name}_{date}'
         # add cols to td_df
         td_df['name'] = name
@@ -258,6 +261,8 @@ class Pipeline:
             if self.lowtype == 'filter':
                 if filt_params[0] > 0 and filt_params[1] > 0:
                     pclass.pupilDiams = utils.butter_filter(pclass.pupilDiams, filt_params, 1 / self.samplerate, filtype='band',)
+                elif filt_params[0] > 0:
+                    pclass.pupilDiams = utils.butter_filter(pclass.pupilDiams, filt_params[0], 1 / self.samplerate, filtype='high')
                 elif filt_params[1] > 0:
                     pclass.pupilDiams = utils.butter_filter(pclass.pupilDiams, filt_params[1], 1 / self.samplerate, filtype='low')
                 else:
@@ -306,7 +311,7 @@ class Pipeline:
                 if sessname in self.preprocessed.keys():
                     self.preprocessed.pop(sessname)
 
-        for name in self.paireddirs:
+        for name in self.paired_sessinfo:
             animal = name.split('_')[0]
             date = name.split('_')[1]
             if 'Human19' in name:
@@ -414,17 +419,18 @@ class Pipeline:
         # This ensures self.sessions is NOT empty even if data is already processed.
         self.sessions = {}
         logger.debug(f'len trial data dict = {len(self.trial_data)}')
-        for name in self.paireddirs:
+        for name in self.paired_sessinfo:
            
             animal = name.split('_')[0]
             date = name.split('_')[1]
 
-            
             # Validation logic (keep your existing filters here)
-            if date not in self.trial_data[name].index.get_level_values('date'):
+            if self.trial_data[name].empty:
+                logger.warning(f'Trial data for {name} is empty.')
+
                 continue
                 
-            session_TD = self.trial_data[name].loc[animal, date].copy().dropna(axis=1)
+            session_TD = self.trial_data[name].dropna(axis=1)
             
             # Set indices as per your original pipeline
             if 'Time_dt' in session_TD.columns:
@@ -481,14 +487,12 @@ class Pipeline:
         if self.preprocessed.get(name):  # Already processed
             return self.finalize(name)
 
-
-
         # ---- Load pupil data ----
         animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
         try:animal_pupil_dfs,sess_recdirs_mask = self._load_pupil_data(name, sess_recdirs, session_TD)
         except Exception as e:
             logger.error(f"{name}: Pupil data load failed - {e}")
-        sess_recdirs = [s for s, m in zip(sess_recdirs, sess_recdirs_mask) if m]
+            sess_recdirs = [s for s, m in zip(sess_recdirs, sess_recdirs_mask) if m]
         if not animal_pupil_dfs:
             return None, None
 
@@ -532,6 +536,9 @@ class Pipeline:
 
     def _find_pupil_file(self, name: str):
         """Search for pupil CSV file in multiple fallback locations."""
+        vid_dir = self.paired_sessinfo[name]['videos_dir']
+        if vid_dir.is_dir():
+            pass
         candidates = [
             self.pdir / f"{name}_{self.pupil_file_tag}a.csv",
             self.pdir / f"{name}_{self.pupil_file_tag}.csv",
@@ -550,14 +557,6 @@ class Pipeline:
         ttl_data = None
         csv_data = None
 
-        # ---- Direct pupil CSVs ----
-        pupil_filepath = self._find_pupil_file(name)
-        if pupil_filepath and pupil_filepath.is_file():
-            try:
-                csv_data = pd.read_csv(pupil_filepath).dropna()
-                logger.info(f"{name}: Loaded pupil file {pupil_filepath} ({len(csv_data)} rows)")
-            except Exception as e:
-                logger.error(f"{name}: Failed reading {pupil_filepath} - {e}")
 
         # ---- Recdirs + TTL alignment ----
         recs_list, event92_df_list = self._load_ttl_and_recs(name, sess_recdirs,)
@@ -568,7 +567,7 @@ class Pipeline:
                 ttl_data = self._align_pupil_with_ttl(name, recs_list, event92_df_list, session_TD,)
                 if ttl_data is not None:
                     logger.info(f"{name}: Loaded TTL-aligned pupil recs ({len(ttl_data[0]) if isinstance(ttl_data, list) else len(ttl_data)} rows)")
-            except Exception as e:
+            except KeyError as e:
                 logger.error(f"{name}: TTL alignment failed - {e}")
 
         # ---- Selection logic ----
@@ -620,6 +619,8 @@ class Pipeline:
         recdir_list = sess_recdirs
         # Find avi in first recdir to confirm path validity
         vid_fps = [next(Path(rec).glob("*.avi"), None) for rec in recdir_list]
+        if len(recdir_list)>1:
+            pass
         vid_fp = vid_fps[0] if vid_fps else None
         if vid_fp is None:
             logger.error(f"No .avi file found in {recdir_list[0]}")
@@ -671,8 +672,22 @@ class Pipeline:
                                                        +timedelta(seconds=float(e)/1e9+harp_sync_ttl_offest_secs))
                 df = pd.DataFrame()
                 df["frametime"] = new_times
-                # df["timestamp"] = (rec["Timestamp_adj"].values/1e9)+cam_ttls[0]
-                df["timestamp"] = cam_ttls.values[-len(df):]
+                _date = int(session_TD.index.get_level_values('date').values[0])
+                if _date < 260201 or _date > 260417:
+                    df["timestamp"] = (rec["Timestamp_adj"].values/1e9)+cam_ttls[0]
+                else:
+                    df["timestamp"] = cam_ttls.values[-len(df):]
+
+                # if (len(df)-len(cam_ttls))/len(df) > 0.01:
+                #     logger.warning(f"Timestamps for {name} have {int((len(df)-len(cam_ttls))/len(df)*100)}% mismatch")
+                #     continue
+                # if len(df) < len(cam_ttls):
+                #     df["timestamp"] = cam_ttls.values[-len(df):]
+                # elif len(df) > len(cam_ttls):
+                #     df = df.head(len(cam_ttls))
+                #     df["timestamp"] = cam_ttls.values
+                # else:
+                #     df["timestamp"] = cam_ttls.values
                 aligned_dfs.append(df)
             else:
                 aligned_dfs.append(rec)
