@@ -2,10 +2,9 @@ import os
 
 import platform
 
-from cv2.gapi import infer
 import psutil
 
-from PupilSense.ellipse_fitting import run_ransac_gpu_pytorch, fit_ellipse_direct_gpu
+from PupilSense.ellipse_fitting import fit_ellipse_direct_gpu
 if platform.system() == 'Windows':
     # Add FFmpeg binaries
     os.add_dll_directory(r"C:\Program Files\ffmpeg\bin")
@@ -23,13 +22,11 @@ import pandas as pd
 import signal  # <-- added for signal handling
 
 # import torch
-import torch.nn.functional as F
 from tqdm import tqdm
 import yaml
 from xdetectioncore.paths import posix_from_win # Use the core utility!
 
-from inference_pupil_sense import Inference, get_center_and_radius
-
+from .inference_pupil_sense import Inference
 import torch
 import decord
 import cv2
