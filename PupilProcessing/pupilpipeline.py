@@ -280,91 +280,6 @@ class Pipeline:
 
         return pclass.pupilDiams, pclass.isOutlier, pupil_diams_nozscore,pupil_diams_uni, pupil_diams_no_outs, pupil_diams_int
 
-    # @logger.catch
-    # def load_pdata(self):
-
-        if self.pklname.exists() and self.overwrite is False:
-            self.data = dict()
-            self.data = joblib.load(self.pklname.with_suffix('.joblib'))
-            logger.info(f'Loaded existing pickle {self.pklname}')
-            
-            existing_sessions = list(self.data.keys())
-            for name in existing_sessions:  # delete empty objects
-                if not hasattr(self.data[name],'pupildf'):
-                    self.data.pop(name)
-                elif not isinstance(self.data[name].pupildf, pd.DataFrame):  # check if None
-                    self.data.pop(name)
-            existing_sessions = list(self.data.keys())
-            self.data = dict()
-            self.preprocessed = dict()
-
-        # elif self.pklname.exists() is False or self.overwrite is True:
-        else:
-            self.data = dict()
-            existing_sessions = []
-        self.existing_sessions = existing_sessions
-
-        if self.redo:
-            for sessname in self.redo:
-                if sessname in existing_sessions:
-                    existing_sessions.remove(sessname)
-                if sessname in self.preprocessed.keys():
-                    self.preprocessed.pop(sessname)
-
-        for name in self.paired_sessinfo:
-            animal = name.split('_')[0]
-            date = name.split('_')[1]
-            if 'Human19' in name:
-                continue
-            if name in existing_sessions:
-                continue
-            if date not in self.trial_data.xs(animal,level='name').index.get_level_values('date'):
-                continue
-            session_TD = self.trial_data.loc[animal, date].copy().dropna(axis=1)
-            if 'RewardProb' in session_TD.columns and 'prob' not in self.protocol:
-                if session_TD['RewardProb'].sum() > 0:
-                    continue
-                if session_TD['Stage'][-1]< 3:
-                    continue
-            if 'Time_dt' in session_TD.columns:
-                session_TD.set_index('Time_dt', append=True, inplace=True)
-            else:
-                session_TD.set_index('Trial_Start_dt', append=True, inplace=True)
-            self.sessions[name] = session_TD
-            self.data[name] = pupilDataClass(animal)
-        # manager = multiprocessing.Manager()
-        # self.data = manager.dict(self.data)
-        sess2run = [sess for sess in self.sessions if sess not in existing_sessions]
-        if self.run_multiprocess:
-            with multiprocessing.Pool(16) as pool:
-                logger.debug('running multi')
-                # self.pool_results = list(tqdm(pool.imap(self.read_and_proccess,self.sessions.keys()),
-                #                               total=len(self.sessions)))
-
-                self.pool_results = pool.map(self.read_and_process,sess2run)
-                # for session in self.sessions:
-                # self.read_and_proccess(session,self.sessions[session])
-        else:
-            self.pool_results = [self.read_and_process(sess) for sess in tqdm(sess2run, desc='Processing session', 
-                                                                               total=len(sess2run))]
-        
-        bad_sess = []
-        for sess_name, result in zip(self.sessions, self.pool_results):
-            if result[0] is None:
-                bad_sess.append(sess_name)
-                continue
-            self.data[sess_name].pupildf = result[0]
-            self.preprocessed[sess_name] = result[1]
-            self.data[sess_name].trialData = self.sessions[sess_name]
-        pd.Series(bad_sess).to_csv(f'{self.pklname.stem}_bad_sessions.csv',index=False,header=False)
-
-        # logger.debug(f' data keys{self.data.keys()}')
-        # logger.debug(f'pdf  = {self.data[list(self.data.keys())[0]].pupildf.shape}')
-        # with open(self.pklname, 'ab') as pklfile:
-        logger.info(f'Saving {self.pklname}')
-        joblib.dump(self.data, self.pklname.with_suffix('.joblib'))
-        # with open(self.preprocessed_pklname, 'ab') as pklfile:
-        joblib.dump(self.preprocessed, self.preprocessed_pklname.with_suffix('.joblib'))
 
     def save_to_parquet(self, name):
         """
@@ -628,6 +543,7 @@ class Pipeline:
 
         ts_files = [vid_fp.with_name(vid_fp.name.replace("_eye0.avi", "_eye0_timestamps.csv")) 
                     for vid_fp in vid_fps]
+
         if not all(ts_file.is_file() for ts_file in ts_files):
             logger.error(f"No timestamp file for {name} in {recdir_list[0]}")
             return None, None
@@ -638,6 +554,9 @@ class Pipeline:
                 for ts_file in ts_files
             ]
         except pd.errors.EmptyDataError:
+            logger.error(f"Issue with {' '.join(map(str, recdir_list))}")
+            return None, None
+        except UnicodeDecodeError:
             logger.error(f"Issue with {' '.join(map(str, recdir_list))}")
             return None, None
         logger.debug(f'{name} len recs: {len(recs_list)}. len event92 dfs: {len(event92_df_list) if event92_df_list else "N/A"}')
@@ -889,6 +808,8 @@ class Pipeline:
                 pupil_uni[f"{col2norm}_int"] = pupil_processed[5][:pupil_uni.shape[0]]
                 outs_list.append(pupil_processed[1])
             except Exception as e:
+            # except IndexError as e:
+            # except IndexError as e:
                 logger.error(f"Can't process pupil for {name} - {e}")
                 return None
 
