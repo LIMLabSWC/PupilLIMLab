@@ -41,12 +41,22 @@ if __name__ == "__main__":
     parser.add_argument('--sess_td_df_query', default=None)
     parser.add_argument('--run_single', action='store_true')
     parser.add_argument('--pkl_sffx', default=None)
+    parser.add_argument('--extra_args',default=None,nargs='+')
 
     args = parser.parse_args()
     os = platform.system().lower()
 
     with open(args.config_file, 'r') as file:
         config = yaml.safe_load(file)
+
+    if args.extra_args is not None:
+        for item in args.extra_args:
+            if ':' in item:
+                # split only on the first colon to protect potential colons inside values
+                k, v = item.split(':', 1) 
+                if k in config:
+                    # yaml.safe_load safely converts "[0.05,0]" into a real Python list [0.05, 0]
+                    config[k] = yaml.safe_load(v)
 
     logger.info('loaded config')
 
